@@ -15,7 +15,7 @@
 package google
 
 import (
-	"context"
+	// "context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -24,7 +24,7 @@ import (
 
 	"golang.org/x/oauth2"
 	oauth2cli "google.golang.org/api/oauth2/v2"
-	"google.golang.org/api/option"
+	// "google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -42,44 +42,45 @@ func NewRequestAuthorizer(ts oauth2.TokenSource) (func(*http.Request) error, err
 	// contents that the proxy clients cannot access, and the access
 	// auditing is done properly.
 
-	oauth2Service, err := oauth2cli.NewService(context.Background(), option.WithTokenSource(ts))
-	if err != nil {
-		return nil, fmt.Errorf("cannot initialize the OAuth2 service: %v", err)
-	}
-
-	// Get the server's service account.
-	t, err := ts.Token()
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain an OAuth2 access token for the server: %v", err)
-	}
-	c := oauth2Service.Tokeninfo()
-	c.AccessToken(t.AccessToken)
-	ti, err := c.Do()
-	if err != nil {
-		return nil, fmt.Errorf("failed to call OAuth2 TokenInfo: %v", err)
-	}
-
-	// Check that the server setup is correct.
-	hasCloudPlatform, hasUserInfoEmail := scopeCheck(ti.Scope)
-	if !hasCloudPlatform {
-		return nil, fmt.Errorf("the server credential doesn't have %s scope. This is needed to access upstream repositories.", scopeCloudPlatform)
-	}
-	if !hasUserInfoEmail {
-		return nil, fmt.Errorf("the server credential doesn't have %s scope. This is needed to get the email address of the service account.", scopeUserInfoEmail)
-	}
-	if ti.Email == "" {
-		return nil, fmt.Errorf("cannot obtain the server's service account email")
-	}
-
-	email := ti.Email
+	// oauth2Service, err := oauth2cli.NewService(context.Background(), option.WithTokenSource(ts))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("cannot initialize the OAuth2 service: %v", err)
+	// }
+	//
+	// // Get the server's service account.
+	// t, err := ts.Token()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("cannot obtain an OAuth2 access token for the server: %v", err)
+	// }
+	// c := oauth2Service.Tokeninfo()
+	// c.AccessToken(t.AccessToken)
+	// ti, err := c.Do()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to call OAuth2 TokenInfo: %v", err)
+	// }
+	//
+	// // Check that the server setup is correct.
+	// hasCloudPlatform, hasUserInfoEmail := scopeCheck(ti.Scope)
+	// if !hasCloudPlatform {
+	// 	return nil, fmt.Errorf("the server credential doesn't have %s scope. This is needed to access upstream repositories.", scopeCloudPlatform)
+	// }
+	// if !hasUserInfoEmail {
+	// 	return nil, fmt.Errorf("the server credential doesn't have %s scope. This is needed to get the email address of the service account.", scopeUserInfoEmail)
+	// }
+	// if ti.Email == "" {
+	// 	return nil, fmt.Errorf("cannot obtain the server's service account email")
+	// }
+	//
+	// email := ti.Email
 	return func(r *http.Request) error {
-		if h := r.Header.Get("Authorization"); h != "" {
-			return authorizeAuthzHeader(oauth2Service, email, h)
-		}
-		if c, err := r.Cookie("o"); err == nil {
-			return authorizeCookie(oauth2Service, email, c.Value)
-		}
-		return status.Error(codes.Unauthenticated, "no auth token")
+		// if h := r.Header.Get("Authorization"); h != "" {
+		// 	return authorizeAuthzHeader(oauth2Service, email, h)
+		// }
+		// if c, err := r.Cookie("o"); err == nil {
+		// 	return authorizeCookie(oauth2Service, email, c.Value)
+		// }
+		// return status.Error(codes.Unauthenticated, "no auth token")
+		return nil
 	}, nil
 }
 
@@ -145,16 +146,16 @@ func CanonicalizeURL(u *url.URL) (*url.URL, error) {
 	ret.Host = u.Host
 	ret.Path = u.Path
 
-	if strings.HasSuffix(ret.Host, ".googlesource.com") {
-		if strings.HasPrefix(ret.Path, "/a/") {
-			// Force authorization prefix.
-			ret.Path = strings.TrimPrefix(ret.Path, "/a")
-		}
-	} else if ret.Host == "source.developers.google.com" {
-		// Do nothing.
-	} else {
-		return nil, status.Errorf(codes.InvalidArgument, "unsupported host: %s", u.Host)
-	}
+	// if strings.HasSuffix(ret.Host, ".googlesource.com") {
+	// 	if strings.HasPrefix(ret.Path, "/a/") {
+	// 		// Force authorization prefix.
+	// 		ret.Path = strings.TrimPrefix(ret.Path, "/a")
+	// 	}
+	// } else if ret.Host == "source.developers.google.com" {
+	// 	// Do nothing.
+	// } else {
+	// return nil, status.Errorf(codes.InvalidArgument, "unsupported host: %s", u.Host)
+	// }
 	// Git endpoint suffixes.
 	if strings.HasSuffix(ret.Path, "/info/refs") {
 		ret.Path = strings.TrimSuffix(ret.Path, "/info/refs")
@@ -163,7 +164,7 @@ func CanonicalizeURL(u *url.URL) (*url.URL, error) {
 	} else if strings.HasSuffix(ret.Path, "/git-receive-pack") {
 		ret.Path = strings.TrimSuffix(ret.Path, "/git-receive-pack")
 	}
-	ret.Path = strings.TrimSuffix(ret.Path, ".git")
+	// ret.Path = strings.TrimSuffix(ret.Path, ".git")
 	return &ret, nil
 }
 
