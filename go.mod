@@ -15,6 +15,7 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	go.opencensus.io v0.22.3
 	golang.org/x/crypto v0.0.0-20200414173820-0848c9571904 // indirect
+	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
 	golang.org/x/tools v0.0.0-20200415034506-5d8e1897c761 // indirect

@@ -44,15 +44,6 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	r = r.WithContext(ctx)
 
-	// Technically, this server is an HTTP proxy, and it should use
-	// Proxy-Authorization / Proxy-Authenticate. However, existing
-	// authentication mechanism around Git is not compatible with proxy
-	// authorization. We use normal authentication mechanism here.
-	// if err := s.config.RequestAuthorizer(r); err != nil {
-	// 	reporter.reportError(err)
-	// 	return
-	// }
-
 	// if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
 	// 	reporter.reportError(status.Error(codes.InvalidArgument, "accepts only Git protocol v2"))
 	// 	return
@@ -65,7 +56,6 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reporter.reportError(status.Error(codes.Unimplemented, "git-receive-pack not supported"))
 	case strings.HasSuffix(r.URL.Path, "/git-upload-pack"):
 		s.uploadPackHandler(reporter, w, r)
-	// case strings.HasSuffix(r.URL.Path, "/info/lfs/objects/batch"):
 	default:
 		director := func(req *http.Request) {
 			req.URL.Scheme = "https"
@@ -78,7 +68,6 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			r.Header.Set("Authorization", "Basic "+basicAuth("x-oauth-basic", token))
 		}
 		p := &httputil.ReverseProxy{Director: director}
-
 		p.ServeHTTP(w, r)
 	}
 }
