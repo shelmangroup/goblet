@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 
 	"github.com/google/gitprotocolio"
@@ -32,8 +33,8 @@ type httpProxyServer struct {
 }
 
 func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w, logCloser := logHTTPRequest(s.config, w, r)
-	defer logCloser()
+	// w, logCloser := logHTTPRequest(s.config, w, r)
+	// defer logCloser()
 	reporter := &httpErrorReporter{config: s.config, req: r, w: w}
 
 	ctx, err := tag.New(r.Context(), tag.Insert(CommandTypeKey, "not-a-command"))
@@ -52,10 +53,10 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 
-	if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
-		reporter.reportError(status.Error(codes.InvalidArgument, "accepts only Git protocol v2"))
-		return
-	}
+	// if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
+	// 	reporter.reportError(status.Error(codes.InvalidArgument, "accepts only Git protocol v2"))
+	// 	return
+	// }
 
 	switch {
 	case strings.HasSuffix(r.URL.Path, "/info/refs"):
@@ -64,6 +65,21 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reporter.reportError(status.Error(codes.Unimplemented, "git-receive-pack not supported"))
 	case strings.HasSuffix(r.URL.Path, "/git-upload-pack"):
 		s.uploadPackHandler(reporter, w, r)
+	// case strings.HasSuffix(r.URL.Path, "/info/lfs/objects/batch"):
+	default:
+		director := func(req *http.Request) {
+			req.URL.Scheme = "https"
+			req.URL.Host = r.URL.Host
+			req.URL.Path = r.URL.Path
+			req.Header.Set("X-Forwarded-Proto", "https")
+		}
+		if r.Header.Get("Authorization") != "" {
+			token := r.Header.Get("Authorization")
+			r.Header.Set("Authorization", "Basic "+basicAuth("x-oauth-basic", token))
+		}
+		p := &httputil.ReverseProxy{Director: director}
+
+		p.ServeHTTP(w, r)
 	}
 }
 
