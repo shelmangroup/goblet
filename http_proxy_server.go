@@ -16,6 +16,7 @@ package goblet
 
 import (
 	"compress/gzip"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"strings"
@@ -46,10 +47,11 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Proxy-Authorization / Proxy-Authenticate. However, existing
 	// authentication mechanism around Git is not compatible with proxy
 	// authorization. We use normal authentication mechanism here.
-	if err := s.config.RequestAuthorizer(r); err != nil {
-		reporter.reportError(err)
-		return
-	}
+	// if err := s.config.RequestAuthorizer(r); err != nil {
+	// 	reporter.reportError(err)
+	// 	return
+	// }
+
 	if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
 		reporter.reportError(status.Error(codes.InvalidArgument, "accepts only Git protocol v2"))
 		return
@@ -63,6 +65,11 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasSuffix(r.URL.Path, "/git-upload-pack"):
 		s.uploadPackHandler(reporter, w, r)
 	}
+}
+
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
 func (s *httpProxyServer) infoRefsHandler(reporter *httpErrorReporter, w http.ResponseWriter, r *http.Request) {
@@ -126,7 +133,7 @@ func (s *httpProxyServer) uploadPackHandler(reporter *httpErrorReporter, w http.
 
 	gitReporter := &gitProtocolHTTPErrorReporter{config: s.config, req: r, w: w}
 	for _, command := range commands {
-		if !handleV2Command(r.Context(), gitReporter, repo, command, w) {
+		if !handleV2Command(r.Context(), r, gitReporter, repo, command, w) {
 			return
 		}
 	}

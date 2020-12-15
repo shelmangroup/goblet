@@ -17,6 +17,7 @@ package goblet
 import (
 	"context"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -36,7 +37,7 @@ type gitProtocolErrorReporter interface {
 	reportError(context.Context, time.Time, error)
 }
 
-func handleV2Command(ctx context.Context, reporter gitProtocolErrorReporter, repo *managedRepository, command []*gitprotocolio.ProtocolV2RequestChunk, w io.Writer) bool {
+func handleV2Command(ctx context.Context, r *http.Request, reporter gitProtocolErrorReporter, repo *managedRepository, command []*gitprotocolio.ProtocolV2RequestChunk, w io.Writer) bool {
 	startTime := time.Now()
 	var err error
 	ctx, err = tag.New(ctx, tag.Upsert(CommandTypeKey, command[0].Command))
@@ -59,7 +60,7 @@ func handleV2Command(ctx context.Context, reporter gitProtocolErrorReporter, rep
 			return false
 		}
 
-		resp, err := repo.lsRefsUpstream(command)
+		resp, err := repo.lsRefsUpstream(r, command)
 		if err != nil {
 			reporter.reportError(ctx, startTime, err)
 			return false
@@ -75,7 +76,7 @@ func handleV2Command(ctx context.Context, reporter gitProtocolErrorReporter, rep
 			reporter.reportError(ctx, startTime, err)
 			return false
 		} else if hasUpdate {
-			go repo.fetchUpstream()
+			go repo.fetchUpstream(r)
 		}
 
 		writeResp(w, resp)
@@ -102,7 +103,7 @@ func handleV2Command(ctx context.Context, reporter gitProtocolErrorReporter, rep
 			fetchStartTime := time.Now()
 			fetchDone := make(chan error, 1)
 			go func() {
-				fetchDone <- repo.fetchUpstream()
+				fetchDone <- repo.fetchUpstream(r)
 			}()
 			timer := time.NewTimer(checkFrequency)
 		LOOP:

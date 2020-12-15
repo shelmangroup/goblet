@@ -127,7 +127,7 @@ type managedRepository struct {
 	mu            sync.RWMutex
 }
 
-func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2RequestChunk) ([]*gitprotocolio.ProtocolV2ResponseChunk, error) {
+func (r *managedRepository) lsRefsUpstream(cr *http.Request, command []*gitprotocolio.ProtocolV2RequestChunk) ([]*gitprotocolio.ProtocolV2ResponseChunk, error) {
 
 	req, err := http.NewRequest("POST", r.upstreamURL.String()+"/git-upload-pack", newGitRequest(command))
 	if err != nil {
@@ -140,10 +140,13 @@ func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2Re
 	req.Header.Add("Content-Type", "application/x-git-upload-pack-request")
 	req.Header.Add("Accept", "application/x-git-upload-pack-result")
 	req.Header.Add("Git-Protocol", "version=2")
+	if cr.Header.Get("Authorization") != "" {
+		req.Header.Add("Authorization", "Basic "+basicAuth("x-oauth-basic", cr.Header.Get("Authorization")))
+	}
+
 	// t.SetAuthHeader(req)
 
 	startTime := time.Now()
-	fmt.Printf("%+v", req)
 	resp, err := http.DefaultClient.Do(req)
 	logStats("ls-refs", startTime, err)
 	if err != nil {
@@ -172,7 +175,7 @@ func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2Re
 	return chunks, nil
 }
 
-func (r *managedRepository) fetchUpstream() (err error) {
+func (r *managedRepository) fetchUpstream(cr *http.Request) (err error) {
 	op := r.startOperation("FetchUpstream")
 	defer func() {
 		op.Done(err)
@@ -191,7 +194,11 @@ func (r *managedRepository) fetchUpstream() (err error) {
 		splitGitFetch = true
 	}
 
-	// var t *oauth2.Token
+	var token string
+	if cr.Header.Get("Authorization") != "" {
+		token = "Basic " + basicAuth("x-oauth-basic", cr.Header.Get("Authorization"))
+	}
+
 	startTime := time.Now()
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -202,7 +209,7 @@ func (r *managedRepository) fetchUpstream() (err error) {
 		// 	err = status.Errorf(codes.Internal, "cannot obtain an OAuth2 access token for the server: %v", err)
 		// 	return err
 		// }
-		err = runGit(op, r.localDiskPath, "fetch", "--progress", "-f", "-n", "origin", "refs/heads/*:refs/heads/*", "refs/changes/*:refs/changes/*")
+		err = runGit(op, r.localDiskPath, "-c", "http.extraHeader=Authorization: "+token, "fetch", "--progress", "-f", "-n", "origin", "refs/heads/*:refs/heads/*", "refs/changes/*:refs/changes/*")
 	}
 	if err == nil {
 		// t, err = r.config.TokenSource.Token()
@@ -210,7 +217,7 @@ func (r *managedRepository) fetchUpstream() (err error) {
 		// 	err = status.Errorf(codes.Internal, "cannot obtain an OAuth2 access token for the server: %v", err)
 		// 	return err
 		// }
-		err = runGit(op, r.localDiskPath, "fetch", "--progress", "-f", "origin")
+		err = runGit(op, r.localDiskPath, "-c", "http.extraHeader=Authorization: "+token, "fetch", "--progress", "-f", "origin")
 	}
 	logStats("fetch", startTime, err)
 	if err == nil {

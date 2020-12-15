@@ -35,7 +35,7 @@ import (
 	"github.com/google/uuid"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-	"golang.org/x/oauth2/google"
+	//	"golang.org/x/oauth2/google"
 
 	logpb "google.golang.org/genproto/googleapis/logging/v2"
 )
@@ -118,14 +118,6 @@ var (
 func main() {
 	flag.Parse()
 
-	ts, err := google.DefaultTokenSource(context.Background(), scopeCloudPlatform, scopeUserInfoEmail)
-	if err != nil {
-		log.Fatalf("Cannot initialize the OAuth2 token source: %v", err)
-	}
-	authorizer, err := googlehook.NewRequestAuthorizer(ts)
-	if err != nil {
-		log.Fatalf("Cannot create a request authorizer: %v", err)
-	}
 	if err := view.Register(views...); err != nil {
 		log.Fatal(err)
 	}
@@ -229,8 +221,6 @@ func main() {
 	config := &goblet.ServerConfig{
 		LocalDiskCacheRoot:         *cacheRoot,
 		URLCanonializer:            googlehook.CanonicalizeURL,
-		RequestAuthorizer:          authorizer,
-		TokenSource:                ts,
 		ErrorReporter:              er,
 		RequestLogger:              rl,
 		LongRunningOperationLogger: lrol,
