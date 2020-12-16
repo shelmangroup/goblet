@@ -141,10 +141,8 @@ func (r *managedRepository) lsRefsUpstream(cr *http.Request, command []*gitproto
 	req.Header.Add("Accept", "application/x-git-upload-pack-result")
 	req.Header.Add("Git-Protocol", "version=2")
 	if cr.Header.Get("Authorization") != "" {
-		req.Header.Add("Authorization", "Basic "+basicAuth("x-oauth-basic", cr.Header.Get("Authorization")))
+		req.Header.Add("Authorization", cr.Header.Get("Authorization"))
 	}
-
-	// t.SetAuthHeader(req)
 
 	startTime := time.Now()
 	resp, err := http.DefaultClient.Do(req)
@@ -194,10 +192,7 @@ func (r *managedRepository) fetchUpstream(cr *http.Request) (err error) {
 		splitGitFetch = true
 	}
 
-	var token string
-	if cr.Header.Get("Authorization") != "" {
-		token = "Basic " + basicAuth("x-oauth-basic", cr.Header.Get("Authorization"))
-	}
+	token := cr.Header.Get("Authorization")
 
 	startTime := time.Now()
 	r.mu.Lock()

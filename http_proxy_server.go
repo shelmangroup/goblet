@@ -44,6 +44,15 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	r = r.WithContext(ctx)
 
+	token := r.Header.Get("Authorization")
+	if token != "" {
+		c := strings.SplitN(token, " ", 2)
+		if c[0] != "token" {
+			reporter.reportError(status.Error(codes.InvalidArgument, "Accepts only GitHub token: Authorization: token <github-token>"))
+			return
+		}
+		r.Header.Set("Authorization", "Basic "+basicAuth(c[0], c[1]))
+	}
 	// if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
 	// 	reporter.reportError(status.Error(codes.InvalidArgument, "accepts only Git protocol v2"))
 	// 	return
@@ -62,10 +71,6 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.URL.Host = r.URL.Host
 			req.URL.Path = r.URL.Path
 			req.Header.Set("X-Forwarded-Proto", "https")
-		}
-		if r.Header.Get("Authorization") != "" {
-			token := r.Header.Get("Authorization")
-			r.Header.Set("Authorization", "Basic "+basicAuth("x-oauth-basic", token))
 		}
 		p := &httputil.ReverseProxy{Director: director}
 		p.ServeHTTP(w, r)
